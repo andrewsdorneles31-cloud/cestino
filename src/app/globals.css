@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #333333;
+  --verde-italiano: #008C45;
+  --vermelho-italiano: #CD212A;
+  --cinza-antracite: #333333;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-verde: var(--verde-italiano);
+  --color-vermelho: var(--vermelho-italiano);
+  --color-cinza: var(--cinza-antracite);
+  --font-playfair: var(--font-playfair);
+  --font-lato: var(--font-lato);
+}
+
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-md bg-white/70 border border-white/20 shadow-xl;
+  }
+  
+  .glass-vermelho {
+    @apply backdrop-blur-md bg-vermelho/15 border border-vermelho/30 shadow-lg;
+  }
+
+  .glass-verde {
+    @apply backdrop-blur-md bg-verde/15 border border-verde/30 shadow-lg;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px rgba(205, 33, 42, 0.15);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-lato), sans-serif;
+  background: radial-gradient(circle at top left, #F5F9F7 0%, #FFFFFF 50%, #F9F5F5 100%);
+}
+
+/* Scrollbar suave */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-vermelho/20 rounded-full hover:bg-vermelho/40 transition-colors;
+}
