@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Heart, Gift, ArrowRight, QrCode, Info, Sparkles, XCircle } from "lucide-react";
