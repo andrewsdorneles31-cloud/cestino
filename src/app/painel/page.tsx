@@ -113,32 +113,63 @@ export default function PainelPresenteador() {
   };
 
   // --- Lógica de áudio ---
+  const [tempoGravacao, setTempoGravacao] = useState(0);
+  const intervaloRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (gravando) {
+      intervaloRef.current = setInterval(() => {
+        setTempoGravacao((t) => t + 1);
+      }, 1000);
+    } else {
+      if (intervaloRef.current) clearInterval(intervaloRef.current);
+      setTempoGravacao(0);
+    }
+    return () => { if (intervaloRef.current) clearInterval(intervaloRef.current); };
+  }, [gravando]);
+
   const iniciarGravacao = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder.current = new MediaRecorder(stream);
-    const chunks: BlobPart[] = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      
+      mediaRecorder.current = new MediaRecorder(stream, { mimeType });
+      const chunks: BlobPart[] = [];
 
-    mediaRecorder.current.ondataavailable = (e) => chunks.push(e.data);
-    mediaRecorder.current.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
-      setAudioBlob(blob);
-      setAudioUrl(URL.createObjectURL(blob));
-    };
+      mediaRecorder.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
 
-    mediaRecorder.current.start();
-    setGravando(true);
+      mediaRecorder.current.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.current.start();
+      setGravando(true);
+    } catch (err) {
+      alert("Erro ao acessar microfone. Verifique as permissões.");
+    }
   };
 
   const pararGravacao = () => {
-    mediaRecorder.current?.stop();
+    if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+      mediaRecorder.current.stop();
+    }
     setGravando(false);
   };
 
   const salvarAudio = async () => {
     if (!audioBlob) return;
-    const file = new File([audioBlob], "audio.webm", { type: "audio/webm" });
+    const extension = audioBlob.type.includes('webm') ? 'webm' : 'mp4';
+    const file = new File([audioBlob], `audio.${extension}`, { type: audioBlob.type });
     const url = await handleUploadMidia(file);
-    if (url) setAudioUrl(url);
+    if (url) {
+      setAudioUrl(url);
+      setAudioBlob(null);
+    }
   };
 
   // --- Lógica de IA ---
@@ -322,7 +353,7 @@ export default function PainelPresenteador() {
                 {/* Audio Card Ampliado */}
                 <motion.div
                   whileHover={{ y: -10 }}
-                  className="glass p-8 md:p-12 lg:p-16 rounded-3xl md:rounded-[4rem] space-y-8 md:space-y-10 border-white/60 shadow-3xl"
+                  className="glass p-8 md:p-12 lg:p-16 rounded-3xl md:rounded-[4rem] space-y-8 md:space-y-10 border-white/60 shadow-3xl flex flex-col"
                 >
                   <div className="flex items-center gap-6 text-vermelho">
                     <div className="bg-vermelho shadow-lg shadow-vermelho/10 p-5 rounded-3xl">
@@ -332,52 +363,73 @@ export default function PainelPresenteador() {
                   </div>
 
                   {audioUrl ? (
-                    <div className="space-y-6">
+                    <div className="space-y-6 flex-1 flex flex-col justify-center">
                       <div className="bg-vermelho/5 p-8 rounded-[2rem] border border-vermelho/10">
                         <audio src={audioUrl} controls className="w-full h-14" />
                       </div>
+                      
+                      {audioBlob && (
+                         <button
+                           onClick={salvarAudio}
+                           disabled={uploading}
+                           className="w-full bg-verde text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg hover:scale-105 transition-all"
+                         >
+                           {uploading ? "Enviando..." : "Confirmar e Enviar Áudio"}
+                         </button>
+                      )}
+
                       <button
-                        onClick={() => setAudioUrl(null)}
-                        className="text-red-500 text-lg font-black uppercase tracking-widest flex items-center gap-3 hover:underline px-4"
+                        onClick={() => { setAudioUrl(null); setAudioBlob(null); }}
+                        className="text-red-500 text-lg font-black uppercase tracking-widest flex items-center gap-3 hover:underline px-4 self-center"
                       >
                         <Trash2 className="w-6 h-6" /> Remover Gravação
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center py-10 gap-10">
-                      <button
-                        onMouseDown={iniciarGravacao}
-                        onMouseUp={pararGravacao}
-                        onTouchStart={iniciarGravacao}
-                        onTouchEnd={pararGravacao}
-                        className={`w-40 h-40 rounded-[3rem] flex items-center justify-center transition-all relative group ${gravando ? 'scale-110' : 'hover:scale-110'}`}
-                      >
+                    <div className="flex flex-col items-center justify-center flex-1 gap-10 py-10">
+                      <div className="relative">
                         {gravando && (
                           <motion.div
-                            initial={{ scale: 0.8, opacity: 0.6 }}
-                            animate={{ scale: 1.8, opacity: 0 }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            className="absolute inset-0 bg-red-500 rounded-[3rem]"
+                            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0.2, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                            className="absolute inset-0 bg-vermelho rounded-full"
                           />
                         )}
-                        <div className={`absolute inset-0 rounded-[3rem] shadow-2xl transition-all duration-500 ${gravando ? 'bg-verde' : 'bg-vermelho group-hover:shadow-vermelho/40'}`} />
-                        <Mic className="w-16 h-16 text-white relative z-10" />
-                      </button>
-                      <div className="text-center space-y-2">
-                        <p className="font-bold text-cinza text-2xl">{gravando ? 'Gravando sua voz...' : 'Mantenha pressionado para gravar'}</p>
-                        <p className="text-xs text-cinza/40 uppercase tracking-[0.4em] font-black">ou envie um arquivo pronto</p>
+                        <button
+                          onClick={gravando ? pararGravacao : iniciarGravacao}
+                          className={`relative z-10 w-32 h-32 rounded-full flex items-center justify-center transition-all shadow-2xl ${gravando ? 'bg-red-600' : 'bg-vermelho hover:scale-105'}`}
+                        >
+                          {gravando ? <div className="w-8 h-8 bg-white rounded-sm" /> : <Mic className="w-12 h-12 text-white" />}
+                        </button>
                       </div>
 
-                      <label className="text-vermelho font-black text-sm uppercase tracking-[0.3em] cursor-pointer hover:bg-vermelho/5 px-8 py-4 rounded-2xl transition-all border-2 border-vermelho/10 hover:border-vermelho/30">
-                        Upload de Áudio
-                        <input type="file" accept="audio/*" className="hidden" onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const url = await handleUploadMidia(file);
-                            if (url) setAudioUrl(url);
-                          }
-                        }} />
-                      </label>
+                      <div className="text-center space-y-2">
+                        <p className="font-bold text-cinza text-xl">
+                          {gravando ? "Gravando... Clique para parar" : "Clique para iniciar gravação"}
+                        </p>
+                        {gravando && (
+                          <p className="text-vermelho font-mono text-2xl font-bold">
+                            {Math.floor(tempoGravacao / 60)}:{(tempoGravacao % 60).toString().padStart(2, '0')}
+                          </p>
+                        )}
+                        <p className="text-xs text-cinza/40 uppercase tracking-[0.4em] font-black mt-4">ou envie um arquivo pronto</p>
+                        
+                        <label className="text-vermelho font-black text-sm uppercase tracking-[0.3em] cursor-pointer hover:bg-vermelho/5 px-8 py-4 rounded-2xl transition-all border-2 border-vermelho/10 hover:border-vermelho/30 inline-block mt-4">
+                          Upload de Áudio
+                          <input 
+                            type="file" 
+                            accept="audio/*" 
+                            className="hidden" 
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const url = await handleUploadMidia(file);
+                                if (url) setAudioUrl(url);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
                   )}
                 </motion.div>
@@ -385,7 +437,7 @@ export default function PainelPresenteador() {
                 {/* Video Card Ampliado */}
                 <motion.div
                   whileHover={{ y: -10 }}
-                  className="glass p-8 md:p-12 lg:p-16 rounded-3xl md:rounded-[4rem] space-y-8 md:space-y-10 border-white/60 shadow-3xl"
+                  className="glass p-8 md:p-12 lg:p-16 rounded-3xl md:rounded-[4rem] space-y-8 md:space-y-10 border-white/60 shadow-3xl flex flex-col"
                 >
                   <div className="flex items-center gap-6 text-vermelho">
                     <div className="bg-vermelho shadow-lg shadow-vermelho/10 p-5 rounded-3xl">
@@ -395,30 +447,36 @@ export default function PainelPresenteador() {
                   </div>
 
                   {videoUrl ? (
-                    <div className="space-y-6">
-                      <div className="rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white group relative">
-                        <video src={videoUrl} controls className="w-full" />
+                    <div className="space-y-6 flex-1 flex flex-col justify-center">
+                      <div className="rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white group relative bg-black aspect-video flex items-center justify-center">
+                        <video src={videoUrl} controls className="w-full max-h-full" />
                       </div>
                       <button
                         onClick={() => setVideoUrl(null)}
-                        className="text-red-500 text-lg font-black uppercase tracking-widest flex items-center gap-3 hover:underline px-4"
+                        className="text-red-500 text-lg font-black uppercase tracking-widest flex items-center gap-3 hover:underline px-4 self-center"
                       >
                         <Trash2 className="w-6 h-6" /> Substituir Vídeo
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center py-10 md:py-20 gap-6 md:gap-8 border-4 border-dashed border-vermelho/10 rounded-3xl md:rounded-[4rem] cursor-pointer hover:bg-vermelho/5 hover:border-vermelho/30 transition-all group">
+                    <label className="flex flex-col items-center justify-center flex-1 py-10 border-4 border-dashed border-vermelho/10 rounded-3xl md:rounded-[4rem] cursor-pointer hover:bg-vermelho/5 hover:border-vermelho/30 transition-all group relative">
+                      {uploading && (
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-[4rem]">
+                           <div className="w-16 h-16 border-4 border-vermelho/20 border-t-vermelho rounded-full animate-spin mb-4" />
+                           <p className="text-vermelho font-bold">Enviando Vídeo...</p>
+                        </div>
+                      )}
                       <div className="bg-vermelho/10 p-6 md:p-8 rounded-2xl md:rounded-3xl group-hover:scale-110 group-hover:bg-vermelho group-hover:text-white transition-all duration-500">
                         <Upload className="w-12 h-12 md:w-16 md:h-16" />
                       </div>
-                      <div className="text-center space-y-2">
+                      <div className="text-center space-y-2 mt-6">
                         <p className="font-bold text-cinza text-xl md:text-2xl">Escolha um vídeo incrível</p>
                         <p className="text-[10px] md:text-[11px] text-cinza/40 font-black uppercase tracking-[0.4em]">Limite de 100MB • MP4, MOV, WEBM</p>
                       </div>
                       <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          if (file.size > 100 * 1024 * 1024) return alert("Vídeo muito grande!");
+                          if (file.size > 100 * 1024 * 1024) return alert("Vídeo muito grande! Limite de 100MB.");
                           const url = await handleUploadMidia(file);
                           if (url) setVideoUrl(url);
                         }

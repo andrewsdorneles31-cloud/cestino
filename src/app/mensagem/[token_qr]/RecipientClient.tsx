@@ -142,11 +142,11 @@ export default function RecipientClient({ mensagem }: Props) {
                   <div className="w-full lg:w-96 glass-vermelho p-8 rounded-[3rem] shrink-0 border-vermelho/20 space-y-6">
                     <div className="flex items-center gap-4 text-vermelho">
                       <div className="bg-vermelho shadow-lg shadow-vermelho/30 p-4 rounded-2xl">
-                        <Play className="w-6 h-6 text-white" />
+                        <Mic className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="font-bold font-playfair text-xl">Ouça a Mensagem</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-vermelho/50">Voz e Emoção</p>
+                        <p className="font-bold font-playfair text-xl">Ouça a Voz</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-vermelho/50">Mensagem Narrada</p>
                       </div>
                     </div>
                     <div className="bg-white/50 p-4 rounded-2xl border border-white/40">
@@ -158,15 +158,25 @@ export default function RecipientClient({ mensagem }: Props) {
             </div>
           </motion.div>
 
-          {/* Vídeo Ampliado */}
+          {/* Vídeo Ampliado com Header */}
           {mensagem.url_video && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 2.8 }}
-              className="rounded-3xl md:rounded-[5rem] overflow-hidden shadow-[0_50px_120px_rgba(0,0,0,0.2)] border-4 md:border-[15px] border-white glass"
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-12"
             >
-              <video src={mensagem.url_video} controls className="w-full" />
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-verde/10 p-5 rounded-full">
+                  <Video className="w-8 h-8 text-verde" />
+                </div>
+                <h3 className="text-3xl md:text-5xl font-playfair font-bold text-cinza">Uma Memória em Vídeo</h3>
+                <p className="text-cinza/60 font-lato text-lg">Um momento capturado para sempre</p>
+              </div>
+
+              <div className="rounded-3xl md:rounded-[5rem] overflow-hidden shadow-[0_50px_120px_rgba(0,0,0,0.2)] border-4 md:border-[15px] border-white glass bg-black aspect-video flex items-center justify-center">
+                <video src={mensagem.url_video} controls className="w-full max-h-full" />
+              </div>
             </motion.div>
           )}
 
