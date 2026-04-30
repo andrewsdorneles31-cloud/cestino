@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Heart, Music, Play, Sparkles } from "lucide-react";
+import { Heart, Music, Play, Sparkles, Mic, Video } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface Props {
