@@ -94,7 +94,7 @@ export default function Home() {
       <div className="fixed top-0 right-0 w-[70%] h-[70%] bg-verde/5 rounded-full blur-[160px] animate-pulse pointer-events-none" />
       <div className="fixed bottom-0 left-0 w-[50%] h-[50%] bg-vermelho/5 rounded-full blur-[140px] pointer-events-none" />
       
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6 lg:p-24">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4 md:p-12 lg:p-24 overflow-x-hidden">
         
         <header className="w-full px-10 flex justify-between items-center max-w-7xl mb-12 md:mb-20">
           <motion.div 
@@ -102,7 +102,7 @@ export default function Home() {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center"
           >
-            <img src="/logo.png" alt="Cestino" className="h-28 md:h-40 object-contain" />
+            <img src="/logo.png" alt="Cestino" className="h-20 md:h-40 object-contain" />
           </motion.div>
           <motion.button 
             whileHover={{ scale: 1.05 }}
@@ -125,7 +125,7 @@ export default function Home() {
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-vermelho">Experiência Digital Premium</span>
               </div>
               
-              <h2 className="text-6xl md:text-7xl lg:text-8xl font-playfair font-bold text-vermelho tracking-tighter leading-[1.1]">
+              <h2 className="text-5xl md:text-7xl lg:text-8xl font-playfair font-bold text-vermelho tracking-tighter leading-[1.1]">
                 O presente<br/>que <span className="italic font-light text-vermelho/80">fala.</span>
               </h2>
               
@@ -144,14 +144,14 @@ export default function Home() {
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
                   placeholder="Digite o código da cesta..."
-                  className="w-full pl-16 pr-8 py-6 rounded-[2rem] text-xl bg-white/80 backdrop-blur-md border-2 border-white focus:border-vermelho/30 focus:bg-white outline-none transition-all shadow-xl font-mono text-vermelho placeholder-vermelho/30"
+                  className="w-full pl-12 md:pl-16 pr-8 py-5 md:py-6 rounded-[1.5rem] md:rounded-[2rem] text-lg md:text-xl bg-white/80 backdrop-blur-md border-2 border-white focus:border-vermelho/30 focus:bg-white outline-none transition-all shadow-xl font-mono text-vermelho placeholder-vermelho/30"
                 />
               </div>
               
               <button 
                 onClick={handleEntrar}
                 disabled={loading || !codigo}
-                className="w-full bg-vermelho text-white py-6 rounded-[2rem] font-bold text-xl shadow-2xl shadow-vermelho/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-4 group"
+                className="w-full bg-vermelho text-white py-5 md:py-6 rounded-[1.5rem] md:rounded-[2rem] font-bold text-lg md:text-xl shadow-2xl shadow-vermelho/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-4 group"
               >
                 {loading ? (
                   <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin" />
@@ -182,7 +182,7 @@ export default function Home() {
             <motion.div 
               animate={{ y: [-20, 20, -20] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="relative z-10 glass p-8 rounded-[3rem] shadow-2xl border-white/60 max-w-sm w-full"
+              className="relative z-10 glass p-4 md:p-8 rounded-[2rem] md:rounded-[3rem] shadow-2xl border-white/60 max-w-sm w-full mx-auto"
             >
               <div className="bg-white rounded-[2rem] overflow-hidden shadow-inner border border-gray-100">
                 <div className="h-48 bg-gray-100 relative overflow-hidden">

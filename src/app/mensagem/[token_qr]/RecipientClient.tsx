@@ -59,9 +59,9 @@ export default function RecipientClient({ mensagem }: Props) {
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="glass px-10 py-5 rounded-full flex items-center border-white/60 shadow-2xl"
+          className="glass px-6 md:px-10 py-3 md:py-5 rounded-full flex items-center border-white/60 shadow-2xl"
         >
-          <img src="/logo.png" alt="Cestino" className="h-16 object-contain" />
+          <img src="/logo.png" alt="Cestino" className="h-10 md:h-16 object-contain" />
         </motion.div>
       </header>
 
@@ -70,7 +70,7 @@ export default function RecipientClient({ mensagem }: Props) {
         <Petala key={i} delay={i * 1.5} />
       ))}
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 py-20 lg:py-32">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-6 py-20 lg:py-32">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
@@ -86,12 +86,12 @@ export default function RecipientClient({ mensagem }: Props) {
                 y: [0, -10, 0]
               }}
               transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-              className="inline-block bg-white/60 backdrop-blur-md p-10 rounded-[3rem] shadow-3xl shadow-vermelho/10 border border-white"
+              className="inline-block bg-white/60 backdrop-blur-md p-6 md:p-10 rounded-2xl md:rounded-[3rem] shadow-3xl shadow-vermelho/10 border border-white"
             >
-              <Heart className="w-16 h-16 text-vermelho fill-current" />
+              <Heart className="w-10 h-10 md:w-16 md:h-16 text-vermelho fill-current" />
             </motion.div>
-            <h1 className="text-6xl md:text-9xl font-playfair font-bold text-vermelho tracking-tight leading-[0.9] text-glow">
-              Para quem faz <br/> <span className="italic font-normal">meu mundo</span> <br/> mais feliz.
+            <h1 className="text-4xl md:text-9xl font-playfair font-bold text-vermelho tracking-tight leading-[0.9] text-glow">
+              Para quem faz <br/> <span className="italic font-normal text-3xl md:text-9xl">meu mundo</span> <br/> mais feliz.
             </h1>
           </div>
 
@@ -105,7 +105,7 @@ export default function RecipientClient({ mensagem }: Props) {
                   animate={{ opacity: 1, scale: 1, rotate: i % 2 === 0 ? -8 : 8 }}
                   whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
                   transition={{ delay: 0.4 * i, type: "spring", damping: 15 }}
-                  className="aspect-[4/5] rounded-[4rem] overflow-hidden shadow-4xl border-[12px] border-white glass hover:border-vermelho/20 transition-all duration-700 cursor-zoom-in"
+                  className="aspect-[4/5] rounded-3xl md:rounded-[4rem] overflow-hidden shadow-4xl border-4 md:border-[12px] border-white glass hover:border-vermelho/20 transition-all duration-700 cursor-zoom-in"
                 >
                   <img src={url} alt="Memória" className="w-full h-full object-cover" />
                 </motion.div>
@@ -118,7 +118,7 @@ export default function RecipientClient({ mensagem }: Props) {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="glass p-12 lg:p-20 rounded-[4rem] border-white/80 shadow-4xl relative overflow-hidden"
+            className="glass p-8 md:p-12 lg:p-20 rounded-3xl md:rounded-[4rem] border-white/80 shadow-4xl relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-vermelho via-verde to-vermelho opacity-30" />
             
@@ -132,7 +132,7 @@ export default function RecipientClient({ mensagem }: Props) {
                     <span className="text-xs font-black uppercase tracking-[0.3em] text-vermelho">Palavras do Coração</span>
                   </div>
                   
-                  <p className="text-3xl lg:text-5xl font-playfair text-gray-800 leading-relaxed italic border-l-4 border-vermelho/20 pl-8 lg:pl-12">
+                  <p className="text-2xl md:text-3xl lg:text-5xl font-playfair text-gray-800 leading-relaxed italic border-l-4 border-vermelho/20 pl-6 md:pl-8 lg:pl-12">
                     {mensagem.texto_formatado || mensagem.texto_mensagem}
                   </p>
                 </div>
@@ -164,7 +164,7 @@ export default function RecipientClient({ mensagem }: Props) {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 2.8 }}
-              className="rounded-[5rem] overflow-hidden shadow-[0_50px_120px_rgba(0,0,0,0.2)] border-[15px] border-white glass"
+              className="rounded-3xl md:rounded-[5rem] overflow-hidden shadow-[0_50px_120px_rgba(0,0,0,0.2)] border-4 md:border-[15px] border-white glass"
             >
               <video src={mensagem.url_video} controls className="w-full" />
             </motion.div>

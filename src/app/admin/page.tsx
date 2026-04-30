@@ -19,6 +19,7 @@ import QRCodeStyling from "qr-code-styling";
 import { refinarMensagem } from "@/lib/ai-actions";
 import { databases, account, APPWRITE_CONFIG } from "@/lib/appwrite";
 import { Query, ID, Models } from "appwrite";
+import { deletarCestaServer, moderarMensagemServer } from "@/lib/admin-actions";
 
 interface Cesta extends Models.Document {
   codigo_unico: string;
@@ -149,15 +150,10 @@ export default function AdminDashboard() {
 
   const moderarMensagem = async (id: string, aprovado: boolean) => {
     try {
-      await databases.updateDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.mensagens,
-        id,
-        { esta_aprovado: aprovado }
-      );
+      await moderarMensagemServer(id, aprovado);
       carregarDados();
-    } catch (error) {
-      alert("Erro ao moderar mensagem.");
+    } catch (error: any) {
+      alert("Erro ao moderar mensagem: " + error.message);
     }
   };
 
@@ -179,47 +175,63 @@ export default function AdminDashboard() {
     }
   };
 
+  const deletarCesta = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja deletar esta cesta? Esta ação removerá a cesta e a mensagem associada permanentemente.")) return;
+
+    try {
+      setLoading(true);
+      await deletarCestaServer(id);
+      await carregarDados();
+      alert("Cesta e mensagens associadas removidas com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao deletar cesta:", error);
+      alert(`Erro ao deletar: ${error.message || "Erro desconhecido"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-vermelho/5 font-lato pb-20">
       {/* Header Premium Expandido */}
-      <header className="glass sticky top-0 z-50 px-10 py-8 border-b border-vermelho/5">
+      <header className="glass sticky top-0 z-50 px-4 md:px-10 py-4 md:py-8 border-b border-vermelho/5">
         <div className="max-w-[1800px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 md:gap-8">
             <motion.img 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               src="/logo.png" 
               alt="Cestino" 
-              className="h-24 object-contain" 
+              className="h-16 md:h-24 object-contain" 
             />
-            <div className="h-10 w-px bg-vermelho/10 mx-2" />
+            <div className="h-10 w-px bg-vermelho/10 mx-1 md:mx-2" />
             <div>
-              <h1 className="font-playfair font-bold text-4xl text-cinza tracking-tight">Portal Administrativo</h1>
-              <div className="flex items-center gap-3 mt-1">
+              <h1 className="font-playfair font-bold text-2xl md:text-4xl text-cinza tracking-tight leading-tight">Portal Adm</h1>
+              <div className="hidden md:flex items-center gap-3 mt-1">
                 <div className="h-2 w-2 rounded-full bg-verde animate-pulse" />
-                <p className="text-cinza/60 text-xs font-black uppercase tracking-[0.4em]">SISTEMA ONLINE • GESTÃO DE SURPRESAS</p>
+                <p className="text-cinza/60 text-xs font-black uppercase tracking-[0.4em]">SISTEMA ONLINE</p>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-10">
+          <div className="flex items-center gap-4 md:gap-10">
             <button 
               onClick={carregarDados}
-              className="p-4 hover:bg-vermelho/5 rounded-2xl text-vermelho transition-all"
+              className="p-3 md:p-4 hover:bg-vermelho/5 rounded-2xl text-vermelho transition-all"
             >
-              <RefreshCw className={`w-6 h-6 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-5 h-5 md:w-6 md:h-6 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button 
               onClick={async () => { try { await account.deleteSession('current'); } catch {} router.push("/admin/login"); }}
-              className="group bg-white/50 hover:bg-vermelho hover:text-white px-8 py-4 rounded-2xl text-vermelho font-black text-sm uppercase tracking-widest transition-all shadow-lg flex items-center gap-3"
+              className="group bg-white/50 hover:bg-vermelho hover:text-white px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-vermelho font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 md:gap-3"
             >
-              Sair do Sistema <Search className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <span className="hidden sm:inline">Sair</span> <Search className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-[1800px] mx-auto p-10 lg:p-20 space-y-20">
+      <main className="max-w-[1800px] mx-auto p-4 md:p-10 lg:p-20 space-y-12 md:space-y-20">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-40 gap-6">
             <div className="w-16 h-16 border-4 border-vermelho/10 border-t-vermelho rounded-full animate-spin" />
@@ -228,26 +240,26 @@ export default function AdminDashboard() {
         ) : (
           <>
             {/* Métricas Monumentais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-12">
               {[
-                { label: "Cestas Registradas", value: cestas.length, icon: Plus, color: "text-cinza", bg: "bg-gray-100" },
-                { label: "Mensagens Totais", value: mensagens.length, icon: Heart, color: "text-vermelho", bg: "bg-vermelho/10" },
-                { label: "Aguardando Aprovação", value: mensagens.filter(m => !m.esta_aprovado).length, icon: RefreshCw, color: "text-yellow-600", bg: "bg-yellow-50" },
-                { label: "Cestas Ativas", value: cestas.filter(c => c.status === 'ativo').length, icon: CheckCircle, color: "text-verde", bg: "bg-verde/10" }
+                { label: "Cestas", value: cestas.length, icon: Plus, color: "text-cinza", bg: "bg-gray-100" },
+                { label: "Mensagens", value: mensagens.length, icon: Heart, color: "text-vermelho", bg: "bg-vermelho/10" },
+                { label: "Pendentes", value: mensagens.filter(m => !m.esta_aprovado).length, icon: RefreshCw, color: "text-yellow-600", bg: "bg-yellow-50" },
+                { label: "Ativas", value: cestas.filter(c => c.status === 'ativo').length, icon: CheckCircle, color: "text-verde", bg: "bg-verde/10" }
               ].map((stat, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  whileHover={{ y: -12, scale: 1.02 }}
-                  className="glass p-12 rounded-[4rem] border-white shadow-4xl group cursor-default"
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  className="glass p-6 md:p-12 rounded-2xl md:rounded-[4rem] border-white shadow-4xl group cursor-default"
                 >
-                  <div className={`${stat.bg} ${stat.color} w-20 h-20 rounded-[2rem] flex items-center justify-center mb-8 shadow-inner group-hover:rotate-12 transition-transform duration-500`}>
-                    <stat.icon className="w-10 h-10" />
+                  <div className={`${stat.bg} ${stat.color} w-12 h-12 md:w-20 md:h-20 rounded-2xl md:rounded-[2rem] flex items-center justify-center mb-4 md:mb-8 shadow-inner group-hover:rotate-12 transition-transform duration-500`}>
+                    <stat.icon className="w-6 h-6 md:w-10 md:h-10" />
                   </div>
-                  <p className="text-cinza/60 text-xs font-black uppercase tracking-[0.4em]">{stat.label}</p>
-                  <p className="text-6xl font-playfair font-bold text-cinza mt-2 tracking-tighter">{stat.value}</p>
+                  <p className="text-cinza/60 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.4em]">{stat.label}</p>
+                  <p className="text-3xl md:text-6xl font-playfair font-bold text-cinza mt-1 md:mt-2 tracking-tighter">{stat.value}</p>
                 </motion.div>
               ))}
             </div>
@@ -256,20 +268,20 @@ export default function AdminDashboard() {
             <div className="space-y-12">
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
                 <div className="space-y-4">
-                  <h2 className="text-5xl md:text-7xl font-playfair font-bold text-cinza tracking-tight leading-none">Centro de Controle</h2>
-                  <p className="text-gray-500 text-2xl max-w-2xl font-lato">Gerencie as surpresas do Dia das Mães e garanta que cada detalhe seja perfeito.</p>
+                  <h2 className="text-3xl md:text-7xl font-playfair font-bold text-cinza tracking-tight leading-none">Centro de Controle</h2>
+                  <p className="text-gray-500 text-lg md:text-2xl max-w-2xl font-lato">Gerencie as surpresas e garanta que cada detalhe seja perfeito.</p>
                 </div>
 
-                <div className="flex bg-white/40 p-3 rounded-[2.5rem] border border-white shadow-xl">
+                <div className="flex bg-white/40 p-2 md:p-3 rounded-2xl md:rounded-[2.5rem] border border-white shadow-xl overflow-x-auto">
                   <button 
                     onClick={() => setAbaAtiva('cestas')}
-                    className={`px-12 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all ${abaAtiva === 'cestas' ? 'bg-vermelho text-white shadow-2xl' : 'text-vermelho/40 hover:text-vermelho'}`}
+                    className={`whitespace-nowrap px-6 md:px-12 py-3 md:py-5 rounded-xl md:rounded-[2rem] font-black text-[10px] md:text-sm uppercase tracking-widest transition-all ${abaAtiva === 'cestas' ? 'bg-vermelho text-white shadow-2xl' : 'text-vermelho/40 hover:text-vermelho'}`}
                   >
                     Gestão de Cestas
                   </button>
                   <button 
                     onClick={() => setAbaAtiva('moderacao')}
-                    className={`px-12 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all ${abaAtiva === 'moderacao' ? 'bg-vermelho text-white shadow-2xl' : 'text-vermelho/40 hover:text-vermelho'}`}
+                    className={`whitespace-nowrap px-6 md:px-12 py-3 md:py-5 rounded-xl md:rounded-[2rem] font-black text-[10px] md:text-sm uppercase tracking-widest transition-all ${abaAtiva === 'moderacao' ? 'bg-vermelho text-white shadow-2xl' : 'text-vermelho/40 hover:text-vermelho'}`}
                   >
                     Moderação ({mensagens.filter(m => !m.esta_aprovado).length})
                   </button>
@@ -284,24 +296,26 @@ export default function AdminDashboard() {
               >
                 {abaAtiva === 'cestas' ? (
                   <div className="space-y-10">
-                    <div className="flex justify-end">
+                    <div className="flex justify-center md:justify-end">
                       <button 
                         onClick={gerarCesta}
-                        className="bg-verde text-white px-12 py-6 rounded-[2rem] font-bold text-xl shadow-2xl shadow-verde/20 hover:scale-105 transition-all flex items-center gap-4"
+                        className="w-full md:w-auto bg-verde text-white px-8 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-[2rem] font-bold text-lg md:text-xl shadow-2xl shadow-verde/20 hover:scale-105 transition-all flex items-center justify-center gap-4"
                       >
-                        <Plus className="w-8 h-8" /> Gerar Nova Cesta Premium
+                        <Plus className="w-6 h-6 md:w-8 md:h-8" /> Gerar Nova Cesta
                       </button>
                     </div>
                     
-                    <div className="glass rounded-[4rem] overflow-hidden border-white shadow-5xl">
-                      <table className="w-full text-left border-collapse">
+                    {/* Visualização em Tabela (Desktop) */}
+                    <div className="hidden lg:block glass rounded-[4rem] overflow-hidden border-white shadow-5xl">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[1000px]">
                         <thead>
                           <tr className="bg-vermelho/5">
-                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60">Cesta / Identificação</th>
-                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-center">Token QR (UUID)</th>
+                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60">Cesta</th>
+                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-center">Token</th>
                             <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-center">Acessos</th>
-                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-center">Estado</th>
-                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-right">Controle</th>
+                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-center">Status</th>
+                            <th className="px-12 py-10 text-[11px] font-black uppercase tracking-[0.4em] text-cinza/60 text-right">Ações</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-vermelho/5">
@@ -316,7 +330,7 @@ export default function AdminDashboard() {
                                   <div className="bg-vermelho/10 w-5 h-5 rounded-full group-hover:bg-vermelho transition-colors" />
                                   <div>
                                     <div className="font-bold text-cinza text-2xl tracking-tight">{cesta.codigo_unico}</div>
-                                    <div className="text-cinza/40 text-xs font-black uppercase tracking-widest mt-1">Cesta Dia das Mães</div>
+                                    <div className="text-cinza/40 text-xs font-black uppercase tracking-widest mt-1">Cesta Premium</div>
                                   </div>
                                 </div>
                               </td>
@@ -337,7 +351,11 @@ export default function AdminDashboard() {
                                   >
                                     <Download className="w-8 h-8" />
                                   </button>
-                                  <button className="bg-red-50 p-4 rounded-2xl text-vermelho hover:bg-vermelho hover:text-white transition-all hover:scale-110">
+                                  <button 
+                                    onClick={() => deletarCesta(cesta.id)}
+                                    className="bg-red-50 p-4 rounded-2xl text-vermelho hover:bg-vermelho hover:text-white transition-all hover:scale-110" 
+                                    title="Deletar Cesta"
+                                  >
                                     <Trash2 className="w-8 h-8" />
                                   </button>
                                 </div>
@@ -348,6 +366,55 @@ export default function AdminDashboard() {
                       </table>
                     </div>
                   </div>
+
+                  {/* Visualização em Cards (Mobile) */}
+                  <div className="lg:hidden space-y-6">
+                    {cestas.map(cesta => (
+                      <motion.div 
+                        key={cesta.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass p-8 rounded-3xl border-white shadow-xl space-y-6"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h3 className="font-bold text-cinza text-2xl tracking-tight">{cesta.codigo_unico}</h3>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest break-all">Token: {cesta.token_qr}</p>
+                          </div>
+                          <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] ${cesta.status === 'ativo' ? 'bg-verde/10 text-verde' : 'bg-red-100 text-red-700'}`}>
+                            {cesta.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white/50 p-4 rounded-2xl border border-white/50">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Acessos</p>
+                            <p className="text-xl font-bold text-cinza">{cesta.contagem_acessos || 0} / {cesta.maximo_acessos}</p>
+                          </div>
+                          <div className="bg-white/50 p-4 rounded-2xl border border-white/50">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Criado em</p>
+                            <p className="text-sm font-bold text-cinza">{new Date(cesta.criado_em).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4 pt-4 border-t border-vermelho/5">
+                          <button 
+                            onClick={() => baixarQR(cesta.token_qr)}
+                            className="flex-1 bg-cinza text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                          >
+                            <Download className="w-5 h-5" /> QR Code
+                          </button>
+                          <button 
+                            onClick={() => deletarCesta(cesta.id)}
+                            className="flex-1 bg-vermelho/10 text-vermelho py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                          >
+                            <Trash2 className="w-5 h-5" /> Deletar
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
                 ) : (
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-12">
                     {mensagens.filter(m => !m.esta_aprovado).length === 0 ? (
@@ -363,7 +430,7 @@ export default function AdminDashboard() {
                           key={msg.id} 
                           layout
                           whileHover={{ y: -20 }}
-                          className="glass p-12 rounded-[4rem] space-y-10 flex flex-col group border-white/80 hover:shadow-5xl transition-all"
+                          className="glass p-6 md:p-12 rounded-[2rem] md:rounded-[4rem] space-y-8 md:space-y-10 flex flex-col group border-white/80 hover:shadow-5xl transition-all"
                         >
                           <div className="flex justify-between items-center">
                             <div className="bg-vermelho/10 px-6 py-3 rounded-2xl border border-vermelho/5">
@@ -375,7 +442,7 @@ export default function AdminDashboard() {
                           <div className="flex-1 space-y-8">
                             <div className="space-y-3">
                               <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em]">Sussurro do Coração</span>
-                              <p className="text-xl text-gray-700 italic bg-gray-50/50 p-8 rounded-[2.5rem] border border-dashed border-gray-200 line-clamp-6">{msg.texto_mensagem}</p>
+                              <p className="text-lg md:text-xl text-gray-700 italic bg-gray-50/50 p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-dashed border-gray-200 line-clamp-6">{msg.texto_mensagem}</p>
                             </div>
 
                             {msg.texto_formatado && (
@@ -384,7 +451,7 @@ export default function AdminDashboard() {
                                   <RefreshCw className="w-4 h-4 text-verde animate-spin-slow" />
                                   <span className="text-[10px] font-black text-verde uppercase tracking-[0.4em]">Lapidação IA</span>
                                 </div>
-                                <p className="text-xl text-cinza font-medium bg-verde/5 p-8 rounded-[2.5rem] border border-verde/10 line-clamp-6 leading-relaxed">{msg.texto_formatado}</p>
+                                <p className="text-lg md:text-xl text-cinza font-medium bg-verde/5 p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-verde/10 line-clamp-6 leading-relaxed">{msg.texto_formatado}</p>
                               </div>
                             )}
                           </div>
@@ -393,20 +460,20 @@ export default function AdminDashboard() {
                             <button 
                               onClick={() => handleRefinarIA(msg.id, msg.texto_mensagem)}
                               disabled={processandoIA === msg.id}
-                              className={`flex-1 bg-cinza text-white p-6 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${processandoIA === msg.id ? 'opacity-50' : 'hover:bg-cinza/80'}`}
+                              className={`flex-1 bg-cinza text-white p-4 md:p-6 rounded-xl md:rounded-[2rem] text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${processandoIA === msg.id ? 'opacity-50' : 'hover:bg-cinza/80'}`}
                             >
                               <RefreshCw className={`w-4 h-4 ${processandoIA === msg.id ? 'animate-spin' : ''}`} />
                               {processandoIA === msg.id ? 'Processando...' : 'Refinar IA'}
                             </button>
                             <button 
                               onClick={() => window.open(`/mensagem/${msg.cestas?.token_qr}`, '_blank')}
-                              className="flex-1 glass border-vermelho/10 text-vermelho p-6 rounded-[2rem] text-xs font-black uppercase tracking-widest hover:bg-vermelho/5 transition-all"
+                              className="flex-1 glass border-vermelho/10 text-vermelho p-4 md:p-6 rounded-xl md:rounded-[2rem] text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-vermelho/5 transition-all"
                             >
                               Prévia
                             </button>
                             <button 
                               onClick={() => moderarMensagem(msg.id, true)}
-                              className="flex-1 bg-verde text-white p-6 rounded-[2rem] text-xs font-black uppercase tracking-widest shadow-2xl shadow-verde/20 hover:scale-105 transition-all"
+                              className="flex-1 bg-verde text-white p-4 md:p-6 rounded-xl md:rounded-[2rem] text-[10px] md:text-xs font-black uppercase tracking-widest shadow-2xl shadow-verde/20 hover:scale-105 transition-all"
                             >
                               Liberar
                             </button>
