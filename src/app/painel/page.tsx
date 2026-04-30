@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { databases, storage, APPWRITE_CONFIG } from "@/lib/appwrite";
 import { Query, ID } from "appwrite";
+import { publicarMensagemServer } from "@/lib/admin-actions";
 
 export default function PainelPresenteador() {
   const [etapa, setEtapa] = useState(1);
@@ -38,10 +39,15 @@ export default function PainelPresenteador() {
 
   const [iaLoading, setIaLoading] = useState(false);
 
-  // Referências para áudio
+  // Referências para mídia
   const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const videoRecorder = useRef<MediaRecorder | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  
   const [gravando, setGravando] = useState(false);
+  const [gravandoVideo, setGravandoVideo] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [videoBlobState, setVideoBlobState] = useState<Blob | null>(null);
 
   const router = useRouter();
 
@@ -172,6 +178,83 @@ export default function PainelPresenteador() {
     }
   };
 
+  // --- Lógica de vídeo ---
+  const [tempoGravacaoVideo, setTempoGravacaoVideo] = useState(0);
+  const intervaloVideoRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (gravandoVideo) {
+      intervaloVideoRef.current = setInterval(() => {
+        setTempoGravacaoVideo((t) => t + 1);
+      }, 1000);
+    } else {
+      if (intervaloVideoRef.current) clearInterval(intervaloVideoRef.current);
+      setTempoGravacaoVideo(0);
+    }
+    return () => { if (intervaloVideoRef.current) clearInterval(intervaloVideoRef.current); };
+  }, [gravandoVideo]);
+
+  const iniciarGravacaoVideo = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" }, 
+        audio: true 
+      });
+      
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+      }
+
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
+        ? 'video/webm;codecs=vp9' 
+        : MediaRecorder.isTypeSupported('video/webm')
+          ? 'video/webm'
+          : 'video/mp4';
+      
+      videoRecorder.current = new MediaRecorder(stream, { mimeType });
+      const chunks: BlobPart[] = [];
+
+      videoRecorder.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      videoRecorder.current.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        setVideoBlobState(blob);
+        setVideoUrl(URL.createObjectURL(blob));
+        
+        // Parar todos os tracks
+        stream.getTracks().forEach(track => track.stop());
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = null;
+        }
+      };
+
+      videoRecorder.current.start();
+      setGravandoVideo(true);
+    } catch (err) {
+      alert("Erro ao acessar câmera. Verifique as permissões.");
+    }
+  };
+
+  const pararGravacaoVideo = () => {
+    if (videoRecorder.current && videoRecorder.current.state !== "inactive") {
+      videoRecorder.current.stop();
+    }
+    setGravandoVideo(false);
+  };
+
+  const salvarVideoGravado = async () => {
+    if (!videoBlobState) return;
+    const extension = videoBlobState.type.includes('webm') ? 'webm' : 'mp4';
+    const file = new File([videoBlobState], `video.${extension}`, { type: videoBlobState.type });
+    const url = await handleUploadMidia(file);
+    if (url) {
+      setVideoUrl(url);
+      setVideoBlobState(null);
+    }
+  };
+
   // --- Lógica de IA ---
   const formatarComIA = async () => {
     if (!texto) return;
@@ -198,45 +281,17 @@ export default function PainelPresenteador() {
     setLoading(true);
 
     try {
-      // Verificar se já existe uma mensagem para esta cesta
-      const existingDocs = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.mensagens,
-        [Query.equal('id_cesta', cestaId || '')]
-      );
-
       const messageData = {
         id_cesta: cestaId,
         texto_mensagem: texto,
         texto_formatado: textoIA,
         urls_imagens: imagens,
         url_audio: audioUrl,
-        url_video: videoUrl,
-        esta_aprovado: false
+        url_video: videoUrl
       };
 
-      if (existingDocs.documents.length > 0) {
-        await databases.updateDocument(
-          APPWRITE_CONFIG.databaseId,
-          APPWRITE_CONFIG.collections.mensagens,
-          existingDocs.documents[0].$id,
-          messageData
-        );
-      } else {
-        await databases.createDocument(
-          APPWRITE_CONFIG.databaseId,
-          APPWRITE_CONFIG.collections.mensagens,
-          ID.unique(),
-          messageData
-        );
-      }
+      await publicarMensagemServer(cestaId, messageData);
 
-      await databases.updateDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.cestas,
-        cestaId!,
-        { status: 'publicado' }
-      );
 
       alert("Sua mensagem foi enviada! Ela será revisada e liberada em breve.");
       router.push("/");
@@ -451,37 +506,86 @@ export default function PainelPresenteador() {
                       <div className="rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white group relative bg-black aspect-video flex items-center justify-center">
                         <video src={videoUrl} controls className="w-full max-h-full" />
                       </div>
+                      
+                      {videoBlobState && (
+                        <button
+                          onClick={salvarVideoGravado}
+                          disabled={uploading}
+                          className="w-full bg-verde text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg hover:scale-105 transition-all"
+                        >
+                          {uploading ? "Enviando Vídeo..." : "Confirmar e Enviar Vídeo"}
+                        </button>
+                      )}
+
                       <button
-                        onClick={() => setVideoUrl(null)}
+                        onClick={() => { setVideoUrl(null); setVideoBlobState(null); }}
                         className="text-red-500 text-lg font-black uppercase tracking-widest flex items-center gap-3 hover:underline px-4 self-center"
                       >
                         <Trash2 className="w-6 h-6" /> Substituir Vídeo
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center flex-1 py-10 border-4 border-dashed border-vermelho/10 rounded-3xl md:rounded-[4rem] cursor-pointer hover:bg-vermelho/5 hover:border-vermelho/30 transition-all group relative">
-                      {uploading && (
-                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-[4rem]">
-                           <div className="w-16 h-16 border-4 border-vermelho/20 border-t-vermelho rounded-full animate-spin mb-4" />
-                           <p className="text-vermelho font-bold">Enviando Vídeo...</p>
-                        </div>
-                      )}
-                      <div className="bg-vermelho/10 p-6 md:p-8 rounded-2xl md:rounded-3xl group-hover:scale-110 group-hover:bg-vermelho group-hover:text-white transition-all duration-500">
-                        <Upload className="w-12 h-12 md:w-16 md:h-16" />
-                      </div>
-                      <div className="text-center space-y-2 mt-6">
-                        <p className="font-bold text-cinza text-xl md:text-2xl">Escolha um vídeo incrível</p>
-                        <p className="text-[10px] md:text-[11px] text-cinza/40 font-black uppercase tracking-[0.4em]">Limite de 100MB • MP4, MOV, WEBM</p>
-                      </div>
-                      <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 100 * 1024 * 1024) return alert("Vídeo muito grande! Limite de 100MB.");
-                          const url = await handleUploadMidia(file);
-                          if (url) setVideoUrl(url);
-                        }
-                      }} />
-                    </label>
+                    <div className="flex flex-col flex-1 gap-6">
+                       {gravandoVideo ? (
+                         <div className="space-y-6 flex-1 flex flex-col">
+                            <div className="rounded-3xl overflow-hidden bg-black aspect-video relative shadow-2xl border-4 border-vermelho">
+                               <video ref={videoPreviewRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                               <div className="absolute top-4 right-4 bg-red-600 px-4 py-2 rounded-full text-white text-sm font-bold flex items-center gap-2 animate-pulse">
+                                  <div className="w-2 h-2 bg-white rounded-full" />
+                                  {Math.floor(tempoGravacaoVideo / 60)}:{(tempoGravacaoVideo % 60).toString().padStart(2, '0')}
+                               </div>
+                            </div>
+                            <button
+                              onClick={pararGravacaoVideo}
+                              className="w-full bg-red-600 text-white py-6 rounded-3xl font-bold text-xl flex items-center justify-center gap-4 shadow-xl"
+                            >
+                              <div className="w-4 h-4 bg-white rounded-sm" /> Parar Gravação
+                            </button>
+                         </div>
+                       ) : (
+                         <div className="flex flex-col gap-6 flex-1 justify-center">
+                            <button
+                              onClick={iniciarGravacaoVideo}
+                              className="w-full bg-vermelho/5 hover:bg-vermelho/10 text-vermelho py-10 rounded-[3rem] border-4 border-dashed border-vermelho/20 flex flex-col items-center gap-4 transition-all group"
+                            >
+                              <div className="bg-vermelho text-white p-5 rounded-2xl group-hover:scale-110 transition-transform">
+                                <Camera className="w-10 h-10" />
+                              </div>
+                              <span className="font-bold text-xl">Gravar Vídeo Agora</span>
+                            </button>
+
+                            <div className="flex items-center gap-4">
+                              <div className="h-px bg-cinza/10 flex-1" />
+                              <span className="text-[10px] font-black text-cinza/30 uppercase tracking-[0.3em]">OU</span>
+                              <div className="h-px bg-cinza/10 flex-1" />
+                            </div>
+
+                            <label className="flex flex-col items-center justify-center py-10 border-4 border-dashed border-vermelho/10 rounded-3xl md:rounded-[4rem] cursor-pointer hover:bg-vermelho/5 hover:border-vermelho/30 transition-all group relative">
+                              {uploading && (
+                                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-[4rem]">
+                                  <div className="w-16 h-16 border-4 border-vermelho/20 border-t-vermelho rounded-full animate-spin mb-4" />
+                                  <p className="text-vermelho font-bold">Enviando Vídeo...</p>
+                                </div>
+                              )}
+                              <div className="bg-vermelho/10 p-6 rounded-2xl group-hover:scale-110 group-hover:bg-vermelho group-hover:text-white transition-all duration-500">
+                                <Upload className="w-10 h-10" />
+                              </div>
+                              <div className="text-center space-y-1 mt-4">
+                                <p className="font-bold text-cinza text-lg">Fazer upload de arquivo</p>
+                                <p className="text-[9px] text-cinza/40 font-black uppercase tracking-[0.2em]">Até 100MB • MP4, MOV</p>
+                              </div>
+                              <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (file.size > 100 * 1024 * 1024) return alert("Vídeo muito grande! Limite de 100MB.");
+                                  const url = await handleUploadMidia(file);
+                                  if (url) setVideoUrl(url);
+                                }
+                              }} />
+                            </label>
+                         </div>
+                       )}
+                    </div>
                   )}
                 </motion.div>
               </div>
