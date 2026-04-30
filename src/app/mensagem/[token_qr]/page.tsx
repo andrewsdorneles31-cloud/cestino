@@ -10,9 +10,8 @@ export default async function PaginaMensagem({
   params: Promise<{ token_qr: string }>;
 }) {
   const { token_qr } = await params;
-  const { databases } = await createAdminClient();
 
-  // Mock para teste local
+  // 1. Mock para teste local (Mover para o topo para evitar inicialização desnecessária do Appwrite)
   if (token_qr === "teste") {
     const mockMensagem = {
       texto_mensagem: "Feliz Dia das Mães! Você é a pessoa mais especial do mundo.",
@@ -29,6 +28,8 @@ export default async function PaginaMensagem({
   }
 
   try {
+    const { databases } = await createAdminClient();
+
     // Buscar a cesta pelo token_qr
     const baskets = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
@@ -39,7 +40,8 @@ export default async function PaginaMensagem({
     const cesta = baskets.documents[0];
 
     if (!cesta) {
-      notFound();
+      console.log(`Cesta não encontrada para o token: ${token_qr}`);
+      return notFound();
     }
 
     // Buscar a mensagem vinculada
@@ -68,9 +70,14 @@ export default async function PaginaMensagem({
       );
     }
 
-    return <RecipientClient mensagem={mensagem} />;
-  } catch (error) {
-    console.error("Erro ao carregar mensagem:", error);
-    notFound();
+    // Passar apenas dados serializáveis para o componente cliente
+    const mensagemSerializavel = JSON.parse(JSON.stringify(mensagem));
+    return <RecipientClient mensagem={mensagemSerializavel} />;
+  } catch (error: any) {
+    // Se for um erro de notFound do Next.js, deixe-o passar
+    if (error.digest?.includes('NEXT_NOT_FOUND')) throw error;
+    
+    console.error("Erro detalhado ao carregar mensagem:", error);
+    return notFound();
   }
 }

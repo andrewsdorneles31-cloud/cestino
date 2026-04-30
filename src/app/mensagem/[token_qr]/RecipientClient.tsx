@@ -183,14 +183,6 @@ export default function RecipientClient({ mensagem }: Props) {
         </motion.div>
       </div>
 
-      <style jsx global>{`
-        audio::-webkit-media-controls-panel {
-          background-color: transparent;
-        }
-        audio::-webkit-media-controls-play-button {
-          filter: sepia(100%) saturate(300%) brightness(50%) hue-rotate(310deg);
-        }
-      `}</style>
     </main>
   );
 }
