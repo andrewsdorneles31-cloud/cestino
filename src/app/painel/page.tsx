@@ -49,10 +49,13 @@ export default function PainelPresenteador() {
     const id = sessionStorage.getItem("cesta_id");
     const codigo = sessionStorage.getItem("codigo_valido");
 
-    setCestaId(id);
+    if (!id || !codigo) {
+      router.push("/");
+      return;
+    }
 
-    
     setCestaId(id);
+    carregarDados(id);
   }, []);
 
   const carregarDados = async (id: string) => {
@@ -155,6 +158,12 @@ export default function PainelPresenteador() {
 
   // --- Salvar Final ---
   const handlePublicar = async () => {
+    if (!cestaId) {
+      alert("Sessão expirada. Por favor, valide seu código novamente.");
+      router.push("/");
+      return;
+    }
+
     setLoading(true);
 
     try {
